@@ -15,10 +15,10 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from tokens import TOKEN, API_Weather
+# from tokens import TOKEN, API_Weather
 
-# TOKEN = "YOUR_TOKEN"
-# API_Weather = "YOUR_API_Weather"
+TOKEN = "7157203399:AAGi6T2TxVDCMyqRYZP3uzMVgu-PFTl0eJo"
+API_Weather = "5dd749b2f141ddbfd300a8b434132de1"
 
 dp = Dispatcher()
 
@@ -139,7 +139,7 @@ async def command_weather_handler(message: Message, command: CommandObject) -> N
         await message.answer(f'Сейчас в {city} температура {term} градусов')
     except Exception as ex:
         print(ex)
-    await message.answer(f'Неудалось узнать погоду в {city}')
+        await message.answer(f'Неудалось узнать погоду в {city}')
 
 
 @dp.message(F.text.lower() == 'привет')
