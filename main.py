@@ -4,6 +4,7 @@ import sys
 import sqlite3
 import requests
 import json
+import aioschedule
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
@@ -15,9 +16,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-# from tokens import TOKEN, API_Weather
-
-TOKEN = "7157203399:AAGi6T2TxVDCMyqRYZP3uzMVgu-PFTl0eJo"
+TOKEN = "7254987749:AAFO94pcp2DPNrvyICeJXaEZuAEzIzUgiAg"
 API_Weather = "5dd749b2f141ddbfd300a8b434132de1"
 
 dp = Dispatcher()
@@ -75,7 +74,7 @@ async def command_register_handler(message: Message, state: FSMContext) -> None:
     try:
         conn = sqlite3.connect('tg.sql')
         cur = conn.cursor()
-        cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, name varchar(50), age int)')
+        cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, user_id int UNIQUE, name varchar(50), age int)')
         conn.commit()
         cur.close()
         conn.close()
@@ -95,20 +94,26 @@ async def process_name(message: Message, state: FSMContext) -> None:
 
 
 @dp.message(Form.age)
-async def process_age(message: Message, state: FSMContext) -> None:
+async def process_age(message: Message, bot: Bot, state: FSMContext) -> None:
     age = message.text
     await state.update_data(age=age)
     current_state = await state.get_data()
     await state.clear()
+    user_id = message.from_user.id
 
-    conn = sqlite3.connect('tg.sql')
-    cur = conn.cursor()
-    cur.execute("INSERT INTO users (name, age) VALUES ('%s', '%s')" % (current_state['name'], current_state['age']))
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = sqlite3.connect('tg.sql')
+        cur = conn.cursor()
+        cur.execute("INSERT INTO users (user_id, name, age) VALUES ('%s', '%s', '%s')"
+                    % (user_id, current_state['name'], current_state['age']))
+        conn.commit()
+        cur.close()
+        conn.close()
 
-    await message.answer(f'Данные записаны {current_state}')
+        await message.answer(f'Данные записаны {current_state}')
+    except Exception as ex:
+        print(ex)
+        await message.answer(f'Такой пользователь уже зарегистрирован')
 
 
 @dp.message(Command('users'))
@@ -117,15 +122,16 @@ async def command_register_handler(message: Message) -> None:
     cur = conn.cursor()
     cur.execute('SELECT * FROM users')
     users = cur.fetchall()
+    cur.close()
+    conn.close()
 
     info = ''
     for el in users:
-        info += f'Имя: {el[1]}, возраст {el[2]}\n'
+        info += f'Имя: {el[2]}, возраст {el[3]}, user_id {el[1]}\n'
 
     await message.answer(f'В базе зарегистрированы следующие люди {info}')
 
-    cur.close()
-    conn.close()
+
 
 
 @dp.message(Command('weather'))
@@ -140,6 +146,27 @@ async def command_weather_handler(message: Message, command: CommandObject) -> N
     except Exception as ex:
         print(ex)
         await message.answer(f'Неудалось узнать погоду в {city}')
+
+
+async def schedule_handler(bot: Bot) -> None:
+    conn = sqlite3.connect('tg.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users')
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    user_id = ''
+    for el in users:
+        user_id = f'{el[1]}'
+    await bot.send_message(user_id, f'Не забудьте проверить уведомления!')
+
+
+async def scheduler(bot: Bot):
+    aioschedule.every().minutes.do(schedule_handler, bot)
+    while True:
+        await aioschedule.run_pending()
+        await asyncio.sleep(1)
 
 
 @dp.message(F.text.lower() == 'привет')
@@ -157,7 +184,7 @@ async def echo_handler(message: Message) -> None:
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-
+    asyncio.create_task(scheduler(bot))
     await dp.start_polling(bot)
 
 

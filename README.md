@@ -14,6 +14,8 @@
 ```bash```
 pip install -U aiogram
 pip install requests
+pip install aioschedule
+
 
 ## Получение токенов
 Токен Telegram:
