@@ -163,7 +163,8 @@ async def schedule_handler(bot: Bot) -> None:
 
 
 async def scheduler(bot: Bot):
-    aioschedule.every().minutes.do(schedule_handler, bot)
+    aioschedule.every().days.at('09:00').do(schedule_handler, bot)
+    # aioschedule.every().minutes.do(schedule_handler, bot)
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(1)
