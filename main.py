@@ -13,7 +13,7 @@ from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 TOKEN = "7254987749:AAFO94pcp2DPNrvyICeJXaEZuAEzIzUgiAg"
@@ -27,22 +27,15 @@ class Form(StatesGroup):
     age = State()
 
 
-class MyCallback(CallbackData, prefix="my"):
-    foo: str
-    bar: str
-
-
-def create_keyboard():
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="Выбор 1",
-        callback_data=MyCallback(foo="Выбор", bar="Выбор 1")
+def create_keyboard() -> InlineKeyboardMarkup:
+    buttons = [
+        [InlineKeyboardButton(text='Выбор 1', callback_data='vybor_1'),
+         InlineKeyboardButton(text='Выбор 2', callback_data='vybor_2'),
+         ],
+    ]
+    return InlineKeyboardMarkup(
+        inline_keyboard=buttons,
     )
-    builder.button(
-        text="Выбор 2",
-        callback_data=MyCallback(foo="Выбор", bar="Выбор 2")
-    )
-    return builder.as_markup()
 
 
 @dp.message(CommandStart())
@@ -56,12 +49,15 @@ async def photo_handler(message: Message) -> None:
     await message.answer(f'Размер картинки {photo_data.width} x {photo_data.height} пикселей')
 
 
-@dp.callback_query(MyCallback.filter(F.foo == "Выбор"))
-async def my_callback_foo(query: CallbackQuery, callback_data: MyCallback):
-    if callback_data.bar == 'Выбор 1':
-        await query.message.answer(f'Вы выбрали {callback_data.bar}')
-    elif callback_data.bar == 'Выбор 2':
-        await query.message.answer(f'Вы выбрали {callback_data.bar}')
+@dp.callback_query(F.data == "vybor_1")
+async def vybor_1_callback(callback: CallbackQuery):
+    await callback.message.edit_text('Выбор 1') \
+ \
+    @ dp.callback_query(F.data == "vybor_2")
+
+
+async def vybor_2_callback(callback: CallbackQuery):
+    await callback.message.edit_text('Выбор 2')
 
 
 @dp.message(Command('help'))
@@ -74,7 +70,8 @@ async def command_register_handler(message: Message, state: FSMContext) -> None:
     try:
         conn = sqlite3.connect('tg.sql')
         cur = conn.cursor()
-        cur.execute('CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, user_id int UNIQUE, name varchar(50), age int)')
+        cur.execute(
+            'CREATE TABLE IF NOT EXISTS users (id int auto_increment primary key, user_id int UNIQUE, name varchar(50), age int)')
         conn.commit()
         cur.close()
         conn.close()
@@ -130,8 +127,6 @@ async def command_register_handler(message: Message) -> None:
         info += f'Имя: {el[2]}, возраст {el[3]}, user_id {el[1]}\n'
 
     await message.answer(f'В базе зарегистрированы следующие люди {info}')
-
-
 
 
 @dp.message(Command('weather'))
