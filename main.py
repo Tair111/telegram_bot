@@ -52,10 +52,8 @@ async def photo_handler(message: Message) -> None:
 @dp.callback_query(F.data == "vybor_1")
 async def vybor_1_callback(callback: CallbackQuery):
     await callback.message.edit_text('Выбор 1') \
- \
-    @ dp.callback_query(F.data == "vybor_2")
 
-
+@ dp.callback_query(F.data == "vybor_2")
 async def vybor_2_callback(callback: CallbackQuery):
     await callback.message.edit_text('Выбор 2')
 
