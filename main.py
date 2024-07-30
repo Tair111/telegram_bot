@@ -93,7 +93,7 @@ async def process_name(message: Message, state: FSMContext) -> None:
 
 
 @dp.message(Form.age)
-async def process_age(message: Message, bot: Bot, state: FSMContext) -> None:
+async def process_age(message: Message, state: FSMContext) -> None:
     age = message.text
     await state.update_data(age=age)
     current_state = await state.get_data()
@@ -154,38 +154,31 @@ async def get_weather(message: Message, state: FSMContext):
 
 
 async def schedule_handler(bot: Bot) -> None:
-    conn = sqlite3.connect('tg.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM users')
-    users = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    user_id = ''
-    for el in users:
-        user_id = f'{el[1]}'
-        print(user_id)
-    await bot.send_message(user_id, f'Не забудьте проверить уведомления!')
-
-
-@dp.message(F.text.lower() == 'привет')
-async def hello_handler(message: Message) -> None:
-    await message.answer(f'И тебе привет')
-
-
-@dp.message()
-async def echo_handler(message: Message) -> None:
     try:
-        await message.send_copy(chat_id=message.chat.id)
-    except TypeError:
-        await message.answer("Nice try!")
+        conn = sqlite3.connect('tg.sql')
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM users')
+        users = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        for el in users:
+            user_id = f'{el[1]}'
+            await bot.send_message(user_id, f'Не забудьте проверить уведомления!')
+    except Exception as ex:
+        print(ex)
+
+
+@dp.message(Command('echo'))
+async def echo_handler(message: Message) -> None:
+    await message.reply(message.text)
 
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     scheduler_task = AsyncIOScheduler(timezone="Europe/Moscow")
-    scheduler_task.add_job(schedule_handler, 'cron', hour='12', minute='00', kwargs={'bot': bot})
+    scheduler_task.add_job(schedule_handler, 'cron', hour='9', minute='00', kwargs={'bot': bot})
     scheduler_task.start()
 
     await dp.start_polling(bot)
