@@ -30,6 +30,14 @@ class City(StatesGroup):
     name = State()
 
 
+class Photo(StatesGroup):
+    name = State()
+
+
+class Echo(StatesGroup):
+    name = State()
+
+
 def create_keyboard() -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text='Выбор 1', callback_data='vybor_1'),
@@ -46,10 +54,26 @@ async def command_start_handler(message: Message) -> None:
     await message.answer(f"Добро пожаловать в наш бот!", reply_markup=create_keyboard())
 
 
-@dp.message(F.photo)
-async def photo_handler(message: Message) -> None:
-    photo_data = message.photo[-1]
-    await message.answer(f'Размер картинки {photo_data.width} x {photo_data.height} пикселей')
+@dp.message(Command('photo'))
+async def command_photo(message: Message, state: FSMContext) -> None:
+    await message.answer(f'Добро пожаловать в режим photo?  Для выхода из режима введите "/"')
+    await state.set_state(Photo.name)
+
+
+@dp.message(Photo.name)
+async def photo_handler(message: Message, state: FSMContext) -> None:
+    if F.photo:
+        try:
+            photo_data = message.photo[-1]
+            await message.answer(f'Размер картинки {photo_data.width} x {photo_data.height} пикселей')
+            await state.set_state(Photo.name)
+        except Exception as ex:
+            print(ex)
+            await message.answer('выход из режима photo')
+            await state.clear()
+    elif message.text.startswith('/'):
+        await message.reply("Завершаю выполнение photo.")
+        await state.clear()
 
 
 @dp.callback_query(F.data == "vybor_1")
@@ -133,24 +157,31 @@ async def command_register_handler(message: Message) -> None:
 
 @dp.message(Command('weather'))
 async def command_weather_handler(message: Message, state: FSMContext) -> None:
-    await message.answer(f'В каком городе хотите узнать погоду?')
+    await message.answer(f'В каком городе хотите узнать погоду?  Для выхода из режима weather введите "/"')
     await state.set_state(City.name)
 
 
 @dp.message(City.name)
 async def get_weather(message: Message, state: FSMContext):
-    city = message.text
-    await state.update_data(city=city)
-    await state.clear()
-    try:
-        res = requests.get(
-            f'https://api.openweathermap.org/data/2.5/find?q={city}&type=like&APPID={API_Weather}&units=metric')
-        data = json.loads(res.text)
-        term = data['list'][1]['main']['temp']
-        await message.answer(f'Сейчас в {city} температура {term} градусов')
-    except Exception as ex:
-        print(ex)
-        await message.answer(f'Неудалось узнать погоду в {city}')
+    if message.text.startswith('/'):
+        await message.reply("Завершаю выполнение weather.")
+        await state.clear()
+    else:
+        city = message.text
+        # await state.update_data(city=city)
+        try:
+            res = requests.get(
+                f'https://api.openweathermap.org/data/2.5/find?q={city}&type=like&APPID={API_Weather}&units=metric')
+            data = json.loads(res.text)
+            term = data['list'][1]['main']['temp']
+            await message.answer(f'Сейчас в {city} температура {term} градусов')
+            await message.answer('В каком ещё городе васе интересует погода?')
+        except Exception as ex:
+            print(ex)
+            await message.answer(f'Неудалось узнать погоду в {city}')
+            await message.answer('В каком ещё городе васе интересует погода?')
+
+        await state.set_state(City.name)
 
 
 async def schedule_handler(bot: Bot) -> None:
@@ -169,10 +200,20 @@ async def schedule_handler(bot: Bot) -> None:
         print(ex)
 
 
-@dp.message(F.text)
-async def echo_handler(message: Message) -> None:
-    await message.reply(message.text)
+@dp.message(Command('echo'))
+async def echo_handler(message: Message, state: FSMContext) -> None:
+    await message.answer('Введите текст для echo команды. Для выхода из режима echo введите "/"')
+    await state.set_state(Echo.name)
 
+
+@dp.message(Echo.name)
+async def get_echo(message: Message, state: FSMContext):
+    if message.text.startswith('/'):
+        await message.reply("Завершаю выполнение echo.")
+        await state.clear()
+    else:
+        await message.answer(message.text)
+        await state.set_state(Echo.name)
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
