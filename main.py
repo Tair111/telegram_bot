@@ -169,7 +169,7 @@ async def schedule_handler(bot: Bot) -> None:
         print(ex)
 
 
-@dp.message(Command('echo'))
+@dp.message(F.text)
 async def echo_handler(message: Message) -> None:
     await message.reply(message.text)
 
