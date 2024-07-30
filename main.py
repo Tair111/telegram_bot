@@ -4,17 +4,16 @@ import sys
 import sqlite3
 import requests
 import json
-import aioschedule
+
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart, Command, CommandObject
-from aiogram.filters.callback_data import CallbackData
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 TOKEN = "7254987749:AAFO94pcp2DPNrvyICeJXaEZuAEzIzUgiAg"
 API_Weather = "5dd749b2f141ddbfd300a8b434132de1"
@@ -25,6 +24,10 @@ dp = Dispatcher()
 class Form(StatesGroup):
     name = State()
     age = State()
+
+
+class City(StatesGroup):
+    name = State()
 
 
 def create_keyboard() -> InlineKeyboardMarkup:
@@ -53,7 +56,8 @@ async def photo_handler(message: Message) -> None:
 async def vybor_1_callback(callback: CallbackQuery):
     await callback.message.edit_text('Выбор 1') \
 
-@ dp.callback_query(F.data == "vybor_2")
+
+@dp.callback_query(F.data == "vybor_2")
 async def vybor_2_callback(callback: CallbackQuery):
     await callback.message.edit_text('Выбор 2')
 
@@ -128,8 +132,16 @@ async def command_register_handler(message: Message) -> None:
 
 
 @dp.message(Command('weather'))
-async def command_weather_handler(message: Message, command: CommandObject) -> None:
-    city = command.args
+async def command_weather_handler(message: Message, state: FSMContext) -> None:
+    await message.answer(f'В каком городе хотите узнать погоду?')
+    await state.set_state(City.name)
+
+
+@dp.message(City.name)
+async def get_weather(message: Message, state: FSMContext):
+    city = message.text
+    await state.update_data(city=city)
+    await state.clear()
     try:
         res = requests.get(
             f'https://api.openweathermap.org/data/2.5/find?q={city}&type=like&APPID={API_Weather}&units=metric')
@@ -152,15 +164,8 @@ async def schedule_handler(bot: Bot) -> None:
     user_id = ''
     for el in users:
         user_id = f'{el[1]}'
+        print(user_id)
     await bot.send_message(user_id, f'Не забудьте проверить уведомления!')
-
-
-async def scheduler(bot: Bot):
-    aioschedule.every().days.at('09:00').do(schedule_handler, bot)
-    # aioschedule.every().minutes.do(schedule_handler, bot)
-    while True:
-        await aioschedule.run_pending()
-        await asyncio.sleep(1)
 
 
 @dp.message(F.text.lower() == 'привет')
@@ -178,10 +183,17 @@ async def echo_handler(message: Message) -> None:
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    asyncio.create_task(scheduler(bot))
+
+    scheduler_task = AsyncIOScheduler(timezone="Europe/Moscow")
+    scheduler_task.add_job(schedule_handler, 'cron', hour='12', minute='00', kwargs={'bot': bot})
+    scheduler_task.start()
+
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    asyncio.run(main())
+    try:
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print('Exit')

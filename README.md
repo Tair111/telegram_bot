@@ -15,6 +15,7 @@
 pip install -U aiogram
 pip install requests
 pip install aioschedule
+pip install apscheduler
 
 
 ## Получение токенов
@@ -34,3 +35,4 @@ pip install aioschedule
 После регистрации получите API ключ (также называемый API_Weather). Замените "YOUR_API_Weather" в коде на полученный ключ.
 Использование
 После установки пакетов и получения токенов, вы можете начать использовать бота для работы с Telegram и получения данных о погоде с OpenWeatherMap.
+
